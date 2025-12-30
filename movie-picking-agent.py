@@ -9,45 +9,71 @@ request=requests.get(f'http://www.omdbapi.com/?apikey={key}&i=tt0108052')
 '''
 
 class MovieAgent():
-    '''Object that reads IMDB TSV file.'''
+    '''TBD'''
     def __init__(self):
         self.joinPath()
+        self.data=None
+        self.condition=None
         self.pathRead=False
 
     def joinPath(self):
-        file=pl.Path(__file__+f'\data\imdb.title.ratings') #Title ratings
-        print(file)
+        '''Inject imdb data to program'''
+        title_imr=pl.Path(__file__).parent / 'data' / 'imdb.title.basics.tsv' #imr=id, metadata, rating
+        title_basics=pl.Path(__file__).parent / 'data' / 'imdb.title.basics.tsv' #
+        self.pathAssign(title_basics)
+        return self
 
     def pathAssign(self, path: str):
         '''Assign path to user selected dir'''
         path = pl.Path(path)
         try:
-            df = pd.read_csv(path, delimiter='\t')
+            self.data = pd.read_csv(path, delimiter='\t')
             self.pathRead=True
         except Exception as e:
             raise IOError(f"Failed to read CSV: {e}") from e
-        return df
+        print(self.data)
+        return self
     
-def loadFile(movie_agent:MovieAgent):
-    '''Open .tsv file and append items as valid columns'''
+    def conditionInject(self, *args:str):
+        '''Limit the data with given columns.
+        
+        *args: Names of the columns to limit'''
+        items=[]
+        for i in args:
+            items.append(i)
+        if len(items) != 0:self.condition=items
+        configureFile()
+        return self
+
+def configureFile(movie_agent:MovieAgent):
+    '''Based on condition, adjust the data to display'''
     
-    if movie_agent.pathRead:
-        movie_agent.data=movie_agent.data[items]
+    if movie_agent.pathRead and movie_agent.condition:
+        movie_agent.data=movie_agent.data[movie_agent.condition]
+    elif movie_agent.pathRead:
+        pass
+        #movie_agent.data=movie_agent.data needless
     else:
-        raise ValueError('Failed to open user given path.')
+        raise ValueError(f'Failed to configure the file. MovieAgent.data: {movie_agent.data}')
     return movie_agent
+
+def extract():
+    ''''''
+
+def recommendationLogic():
+    ''''''
 
 if __name__ == '__main__':
     main=MovieAgent()
 
-    '''Initialize main callables
+    '''Initialize main callables and set data
             
-            -Add main object to be manipulated later,
-            -Add path assign/append method,
-            -Add required modules,
-            -Add git lfs,
-            -Add IMDB data,
-            -Add hardcoded test codes.'''
+            -Fix path append method,
+            -Add limiting values internally,
+            
+    TODO:   
+            -Make program less concerete (imdb data needs downloaded somehow)
+            -Extract '''
 
     '''ask=True
 while True:
