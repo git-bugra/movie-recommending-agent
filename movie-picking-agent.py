@@ -29,9 +29,7 @@ class movieAgent():
                                     'runtimeMinutes': 'Run Time Minutes',
                                     'genres': 'Genre'})
             return self
-
-        except: KeyError('Column not found to rename.')
-        
+        except KeyError as e: raise KeyError(f"Column not found to rename: {e}") from e
 
     def assignCondition(self, *args:str):
         '''Internal limitation the data with given columns.
@@ -39,19 +37,18 @@ class movieAgent():
         
         *args: Names of the columns to limit'''
         columns_to_limit=[*args]
-        if len(columns_to_limit)>1:self.condition=columns_to_limit
+        if len(columns_to_limit)>0:self.condition=columns_to_limit
         try:self.applyCondition()
-        except:KeyError('Column given to limit not found')
+        except KeyError as e:raise KeyError(f"With given arguments, column not found: {e}") from e
         return self
 
     def applyCondition(self):
         '''Based on condition, adjust the data to display'''
-        if not self:
+        if self.data is None:
             raise ValueError(f'Failed to apply condition to the file.')
         if self and self.condition:
             self.data=self.data[self.condition]
-            self.condition=False #Consume condition after applying for predictable code
-            print(self.data['Primary Title'], '\n')
+            self.condition=None #Consume condition after applying for predictable code
         return self
     
     def applyInternalFilter(self, mask:str):
@@ -64,6 +61,7 @@ class movieAgentBuilder():
     def __init__(self):
         self._initAgent()
         self.raw_data=None
+        self.movie_agent_object=None
 
     def _initAgent(self):
         '''Orchestrates the flow of code for easy readability.'''
@@ -72,6 +70,7 @@ class movieAgentBuilder():
         movie_agent.applyInternalFilter('movie') #remove anything else than movie in records
         movie_agent.applyRenamedColumns() #Rename the columns to be more intuitive
         movie_agent.assignCondition('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre')
+        self.movie_agent_object=movie_agent
 
     def setupData(self, movie_agent:movieAgent):
         '''Setup imdb data and call on files to be merged'''
@@ -118,15 +117,15 @@ def recommendationLogic():
     '''
 
 if __name__ == '__main__':
+    
     builder=movieAgentBuilder()
-    '''Structural fixes and code improvement
-            
-            -Fix incomplete function setups,
-            -Add error handling, 
-            -Add intuitive descriptions to lines of code,
-            -Add internal boolean indexing,
-            -Add refactored version of SRP violating class,
-            -Add internal recovery tools,
+    '''
+    NOTE:
+        Major code improvements and refactoring.
+
+            -Fix condition variable bug,
+            -Fix wrong indentations
+
             
     TODO:   
             -Make program less concerete (imdb data needs downloaded somehow)
@@ -136,12 +135,13 @@ if __name__ == '__main__':
             -Load random top n amount, excluding previously loaded,
             -Add user filtering.
             
-    Current:
+    ABLETO:
     
             -Load data files,
             -Read .tsv files as pandas df object,
             -Call on condition to limit the view of the df,
-            -Manipulate columns on the df'''
+            -Manipulate columns on the df,
+            -Filter records given arguments'''
 
     
 
