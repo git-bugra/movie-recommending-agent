@@ -180,13 +180,15 @@ class MoviePicker():
     def applyFilter(self, column_name:str, operatr:str, value:str):
         '''Apply appropiate value as filter to column_name.'''
         value=self.assignConversion(column_name, value)
-        condition=self.assignOperator(column_name, operatr, value)
-        candidates=self.df[condition]
-        self.applyCondition(condition)
+        if column_name == 'Primary Title' or column_name == 'Genre':candidates=self.df[self.assignOperator(column_name, operatr, value, True)] #check for genre to make filter more inclusive.
+        else:
+            condition=self.assignOperator(column_name, operatr, value)
+            candidates=self.df[condition]
+            self.assignCondition(condition)
         return candidates
     
-    def applyCondition(self, condition:pd.Series):
-        '''Adjust condition property for filterization'''
+    def assignCondition(self, condition:pd.Series):
+        '''Apply condition property for filterization'''
         if condition is None:
             self.condition=None
         else:
