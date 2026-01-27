@@ -82,15 +82,15 @@ class MovieAgentBuilder():
             title_basics_df=self.read_tsv_file(title_basics)
             title_imr_df=self.read_tsv_file(title_imr)
             movie_agent.data=self.merge_dataframes(title_imr_df,title_basics_df) #insert df to be merged
-            movie_agent.data=self._purge_data(movie_agent) #retains data quality
-            movie_agent.rename_columns() #Rename the columns to be more intuitive
-            movie_agent.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre', 'Title Type') #Mutate only wanted columns
+            movie_agent.data=self._purge_data(movie_agent) #retain data quality
+            movie_agent.rename_columns() #rename the columns to be more intuitive
+            movie_agent.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre') #Mutate only wanted columns
         print(f"Operation runtime: {time.time()-start}")
         self.raw_data=self._copy_raw_data(movie_agent)
         self._save_dataframe(movie_agent.data)
         return movie_agent
 
-    def merge_dataframes(self,*args:pd.DataFrame):
+    def merge_dataframes(self, *args:pd.DataFrame):
         '''Merges .tsv data files. Mutates self.data.'''
         result=args[0]
         if len(args)>1:
@@ -118,8 +118,8 @@ class MovieAgentBuilder():
 
     def _purge_data(self, movie_agent:MovieAgent):
         '''Remove excessive items with low votes, empty primary titles and genres.'''
-        movie_agent.data=movie_agent.filter_rows('titleType','movie') #Remove anything else than movie in records
-        movie_agent.data=movie_agent.data[(movie_agent.data['primaryTitle'].notna())&(movie_agent.data['genres'].notna())&(movie_agent.data['numVotes']>10000)] #Purge unsuitable titles
+        movie_agent.data=movie_agent.filter_rows('titleType','movie') #remove anything else than movie in records
+        movie_agent.data=movie_agent.data[(movie_agent.data['primaryTitle'].notna())&(movie_agent.data['genres'].notna())&(movie_agent.data['numVotes']>50000)] #Purge unsuitable titles
         return movie_agent.data
     
 class MovieSelector():
@@ -138,9 +138,9 @@ class MovieSelector():
         self.user=None
         self.genres=self.df['Genre'].str.lower().str.split(',').explode().unique()
         self.column_map={col.lower(): col for col in self.df.columns}
-        self.get_movies(100,filter_tools)
+        self.candidates=self.get_movies(filter_tools)
 
-    def get_movies(self, n:int, filter_tools:list[list[str]]):
+    def get_movies(self, filter_tools:list[list[str]]):
         '''Retrieve list of movies with user filter applied.\n
         n: number of movie recommendation\n
         filter_tools: Filter params: column_name, operator, value such as: Average Rating, >, 7
@@ -148,17 +148,9 @@ class MovieSelector():
         #Check if column_name, operatr, value valid in dataframe
         candidates=self.apply_all_filters(filter_tools)
         self.configure_sort('Average Rating', False)
-        filtered_candidates=self._select_movies(n,candidates) #TODO: Remove fixed N.
-        #recommended=self.fetch_advice(filtered_candidates)
+        filtered_candidates=self._select_movies(candidates)
         return filtered_candidates
     
-    def fetch_advice(self, filtered_candidates:list[dict]):
-        '''TODO: Design an algorithm that calculates what user might like and recommend according to that.'''
-        self.fetch_advice_helper()
-
-    def fetch_advice_helper(self):
-        '''TODO: For limited advices, help fetch advice to internally flex on some filters'''
-
     def _parse_filter_tools(self, filter_tools:list[str]):
         '''Based on the argument length, assign variables to apply filters.
         This is needed for allowing user to type in titles and genres without explicit operations.'''
@@ -173,30 +165,14 @@ class MovieSelector():
             column_name=None
         return column_name, operatr, value
 
-    def _select_movies(self, n, candidates):
-        '''Based on given candidates and n as int, print and return the list of recommend which has movies with their information.'''
-        filtered_candidates:list[dict]=[]
+    def _select_movies(self, candidates:pd.DataFrame):
+        '''Based on given candidates, print and return the dataframe which has movies with their information.'''
         sorted_candidate:pd.DataFrame=self.sort_candidates(candidates) 
-        for index, row_value in sorted_candidate.iterrows():
-            if row_value['IMDBid'] not in self.previous and len(filtered_candidates)<n:
-                filtered_candidates.append(self._row_to_dict(row_value)) #Append richened data from sorted and filtered rows to recommended list
-            if row_value['IMDBid'] not in self.previous: self.previous.add(row_value['IMDBid'])
+        filtered_df=sorted_candidate[~sorted_candidate['IMDBid'].isin(self.previous)]
+        self.previous.update(filtered_df['IMDBid'])
         print('\033c') #Remove previous lines
-        for j in filtered_candidates:
-            print(j, '\n')
-        return filtered_candidates
-
-    def _row_to_dict(self, row_value:pd.Series):
-        '''Convert row to dictionary with primary column values.'''
-        movie_info={
-            'IMDBid': row_value['IMDBid'],
-            'Primary Title': row_value['Primary Title'],
-            'Average Rating': row_value['Average Rating'],
-            'Number of Votes': row_value['Number of Votes'],
-            'Published': row_value['Published'],
-            'Genre': row_value['Genre']
-        }
-        return movie_info
+        print(filtered_df.to_string(index=False, max_colwidth=45))
+        return filtered_df
 
     def apply_all_filters(self, filter_tools:list[list[str]]):
         '''Unpacks filter tools and applies each filter in it manually.'''
@@ -289,10 +265,10 @@ class AppManager():
     def __init__(self):
         self.builder=MovieAgentBuilder()
         self.CLI=UserInterface() #Expects prompts like Average Rating>5 or Shawshank Redemption
-        self._create_movie_picker()
+        self._main()
         
-    def _create_movie_picker(self):
-        self.filter_tools:list[str]=self.CLI.all_filter_tools
+    def _main(self):
+        self.filter_tools:list[list[str]]=self.CLI.all_filter_tools
         self.advice=MovieSelector(self.builder, self.filter_tools)
 
 if __name__ == '__main__':
