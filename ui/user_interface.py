@@ -99,11 +99,13 @@ class UserInterface():
                 user_text=input('\nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
             elif user_text in 'filter':
-                print(f'''\033cTo apply more than one filter, seperate the filters by the {self.delimiter}''')
-                user_text=input('\Options:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
+                print(f'''\033cTo apply more than one filter, seperate the filters by {self.delimiter}''')
+                user_text=input('\nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
             elif self._is_exit(user_text):
                 flag=False
+
+            else: flag=False
 
 if __name__ == "__main__":
     
