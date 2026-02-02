@@ -22,7 +22,7 @@ Broad features (WIP):
 Request OMDB API for live details
 
 
-Future Plans:
+Future Dev Plans (Hope in progress :D):
     
     1. Changed mindset feature: Movies user did not like very long time ago but considered classics
 
