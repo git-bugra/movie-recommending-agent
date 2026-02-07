@@ -8,8 +8,10 @@ class MoviePicker():
     '''
     
     def __init__(self, candidates:pd.DataFrame):
+        self.previous={}
         self.raw_data=candidates.copy()
         self.data=candidates.copy()
+        self.date=date=datetime.date.today()
         self._convert_dtypes()
         self.recommend_one()
 
@@ -22,7 +24,8 @@ class MoviePicker():
         '''
         '''
         self._build_score() #modifies self.data and adds scores as new columns
-        print('MOVIEPICKER_DF:\n',self.data.to_string())
+        print('MOVIEPICKER_DF:\n',self.data.to_string(max_colwidth=15))
+        self._pick_n_movie(5)
 
     def _build_score(self):
         bayes_scores = []
@@ -41,7 +44,21 @@ class MoviePicker():
         self.data['Bayes Score'] = bayes_scores
         self.data['Decay Factor'] = decay_factors
         self.data['Adjusted Score'] = adjusted_scores
-        return self.data
+        return True
+    
+    def _pick_n_movie(self, n):
+        candidates=self.data.sort_values('Adjusted Score', ascending=False)
+        picks=[]
+        print(candidates.to_string())
+
+        for tuple, value in candidates.iterrows():
+            if value['IMDBid'] not in self.previous and len(picks)<n:
+                ''''''
+                picks.append(value)
+                self.previous[value['IMDBid']]=self.date
+            elif len(picks)>=n:
+                break
+        return picks
 
     def _calculate_bayesian_score(self, movie, m, c):
         '''
@@ -56,7 +73,6 @@ class MoviePicker():
         return bayes_score
     
     def _calculate_decay_factor(self, movie):
-        # Private adjustment method
         ''''''
         years_old=datetime.date.today().year-int(movie['Published'])
         if years_old<10:
