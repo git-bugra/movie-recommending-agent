@@ -3,7 +3,6 @@ import datetime
 import pathlib as pl
 from pandas import Series
 
-
 class MoviePicker():
     """
     Algorithmic class that takes constrained data, outputs the best suitable movie.
@@ -12,12 +11,10 @@ class MoviePicker():
         self.raw_data=candidates.copy()
         self.data=candidates.copy()
         self.date=datetime.date.today()
-        self.picks = []
-        self.previous_path=pl.Path(__file__).parent.parent / 'data' / 'previous_data.parquet'
-        self._load_memory()
+        self.picks=[]
         self._convert_dtypes()
         self.recommend()
-        self._process_file()
+        self.file_operator = MovieFileOperator(pd.DataFrame(self.picks), self.data)
 
     def _convert_dtypes(self):
         """
@@ -54,6 +51,8 @@ class MoviePicker():
         self.data['Bayes Score'] = bayes_scores
         self.data['Decay Factor'] = decay_factors
         self.data['Adjusted Score'] = adjusted_scores
+        self.data['Date'] = self.date
+        print(self.data.to_string(index=False))
         return True
     
     def _pick_n_movie(self, n):
@@ -102,31 +101,49 @@ class MoviePicker():
             decay_factor=0.9992**years_old
         return decay_factor
 
-    def _process_file(self):
+class MovieFileOperator():
+    """
+    Class that handles file operations for orchestrator class.
+    """
+
+    def __init__(self, picks_df:pd.DataFrame, bayesian_df:pd.DataFrame):
+        """"""
+        self.previous=None
+        self.bayesian_df=bayesian_df
+        self.picks_df=picks_df
+        self.previous_path = pl.Path(__file__).parent.parent / 'data' / 'previous_data.parquet'
+        self.bayesian_path = self.previous_path = pl.Path(__file__).parent.parent / 'data' / 'bayesian_data.parquet'
+        self._load_memory()
+        self._process_file(self.picks_df)
+
+    def _process_file(self, picks_df):
         """
         Orchestrate saving and expanding previous movies and bayesian scores.
         """
-        self._concat_previous()
-        self._save_previous()
-        self._save_bayesian_scores()
+        self._concat_previous(picks_df)
+        self._save_file(self.bayesian,self.bayesian_path)
+        self._save_file(self.previous,self.previous_path)
 
     def _load_memory(self):
+        """
+        Load all saved files and scores into the program.
+        """
         self._load_previous()
-        self._load_bayesian_scores()
+        self._load_bayesian()
+        return True
 
-    def _concat_previous(self):
+    def _concat_previous(self, picks_df):
         """
         Expand previously recommended movies list.
         """
-        picks_df=pd.DataFrame(self.picks)
         self.previous=pd.concat([picks_df,self.previous],ignore_index=True)
         return self
 
-    def _save_previous(self):
+    def _save_file(self, file:pd.DataFrame, path:pl.Path):
         """
         Save previously recommended movies df.
         """
-        self.previous.to_parquet(str(self.previous_path))
+        file.to_parquet(str(path))
         return self
 
     def _load_previous(self):
@@ -138,15 +155,22 @@ class MoviePicker():
         except FileNotFoundError:
             self.previous=pd.DataFrame(columns=['IMDBid', 'Date'])
         except ValueError:
-            print(f'Corrupt file, it has been saved as: corrupted_previous_path in {str((pl.Path(__file__).parent.parent / 'data' / 'corrupted_previous_path'))}\n New file is allocated, app will launch now.')
+            print(f'Corrupt file. New file is allocated, app will launch now.')
             self.previous=pd.DataFrame(columns=['IMDBid', 'Date'])
         return self
 
-    def _save_bayesian_scores(self):
-        """"""
+    def _load_bayesian(self):
+        """
 
-    def _load_bayesian_scores(self):
-        """"""
+        """
+        try:
+            self.bayesian=pd.read_parquet(str(self.bayesian_path))
+        except FileNotFoundError:
+            pass
+        except ValueError:
+            print(f'Corrupt file. New file is allocated, app will launch now.')
+        self.bayesian=pd.DataFrame(columns=['IMDBid', 'Date', 'Bayes Score', 'Decay Factor', 'Adjusted Score'])
+        return True
 
 if __name__ == '__main__':
     data=[{'IMDBid': 'tt0209144', 'Primary Title': 'Memento', 'Average Rating': 8.4, 'Number of Votes': 1415506, 'Published': '2000', 'Genre': 'Drama,Mystery,Thriller'},
