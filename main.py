@@ -4,6 +4,7 @@ import pathlib as pl
 import pdb
 from ui.user_interface import UserInterface
 import time
+from networking import handle_datasets as hd
 
 class MovieAgent():
     """Main object responsible for clearing, fixing columns and internally consume columns.\n
@@ -11,21 +12,11 @@ class MovieAgent():
     def __init__(self):
         self.data:pd.DataFrame=pd.DataFrame()
         self.condition=None
-    
-    def rename_columns(self):
+
+    def rename_columns(self, columns:dict):
         """Make columns in imdb .tsv files more readable and intuitive"""
         try:    
-            self.data:pd.DataFrame=self.data.rename(columns={'tconst': 'IMDBid',
-                                    'averageRating': 'Average Rating',
-                                    'numVotes': 'Number of Votes',
-                                    'titleType': 'Title Type',
-                                    'primaryTitle': 'Primary Title',
-                                    'originalTitle': 'Original Title',
-                                    'isAdult': 'Is Adult',
-                                    'startYear': 'Published',
-                                    'endYear': 'End Year',
-                                    'runtimeMinutes': 'Run Time Minutes',
-                                    'genres': 'Genre'})
+            self.data:pd.DataFrame=self.data.rename(columns=columns)
             return self
         except KeyError as e: raise KeyError(f"Column not found to rename: {e}") from e
 
@@ -48,78 +39,96 @@ class MovieAgent():
             self.data=self.data[self.condition]
             self.condition=None #Consume condition after applying for predictable code
         return self
-    
-    def filter_rows(self, column:str, mask):
-        """Remove unwanted records internally."""
-        data:pd.DataFrame
-        data=self.data[self.data[column]==mask]
-        return data
 
 class MovieAgentBuilder():
     """Orchestral class for managing callable hierarchy and the internal state of the object MovieAgent.\n
     Orchestrates the MovieAgent object(s) only."""
 
     def __init__(self):
-        self.movie_agent_object=None
         self.raw_data=None
-        self.preprocessed_path=pl.Path(__file__).parent / 'data' / 'preprocessed_data.parquet'
+        self.movie_agent=MovieAgent()
+        self.preprocessed_path = pl.Path(__file__).parent / 'data' / 'preprocessed_data.parquet'
+        self.file_assister = DataLoader(self.movie_agent.data, self.preprocessed_path)
         self._build_agent()
 
     def _build_agent(self):
         """Orchestrates the flow of code for easy readability."""
-        movie_agent=MovieAgent()
-        self.load_data(movie_agent)
-        self.movie_agent_object=movie_agent
+        self.mutate_dataframe(self.movie_agent)
 
-    def load_data(self, movie_agent:MovieAgent):
+    def mutate_dataframe(self, movie_agent:MovieAgent):
         """Setup imdb data and call on files to be modified"""
-        start=time.time()
-        if pl.Path.exists(self.preprocessed_path):
-            movie_agent.data=pd.read_parquet(self.preprocessed_path)
-        else:
-            title_imr=pl.Path(__file__).parent / 'data' / 'imdb.title.ratings.tsv' #imr=id, metadata, rating
-            title_basics=pl.Path(__file__).parent / 'data' / 'imdb.title.basics.tsv' #
-            title_basics_df=self.read_tsv_file(str(title_basics))
-            title_imr_df=self.read_tsv_file(str(title_imr))
-            movie_agent.data=self.merge_dataframes(title_imr_df,title_basics_df) #insert df to be merged
-            movie_agent.data=self._purge_data(movie_agent) #retain data quality
-            movie_agent.rename_columns() #rename the columns to be more intuitive
-            movie_agent.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre') #Mutate only wanted columns
-            movie_agent.data.to_parquet(self.preprocessed_path)
-        print(f"Operation runtime: {time.time()-start}")
-        self.raw_data=self._copy_raw_data(movie_agent)
+        movie_agent.rename_columns({'tconst': 'IMDBid','averageRating': 'Average Rating',
+                                    'numVotes': 'Number of Votes','titleType': 'Title Type',
+                                    'primaryTitle': 'Primary Title','originalTitle': 'Original Title','isAdult': 'Is Adult',
+                                    'startYear': 'Published','endYear': 'End Year','runtimeMinutes': 'Run Time Minutes','genres': 'Genre'}) #rename the columns to be more intuitive
+        movie_agent.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre') #Mutate only wanted columns
+        self.raw_data=self.file_assister.raw_data
         return movie_agent
 
+class DataLoader():
+
+    def __init__(self, data_frame, path):
+        self.data=None
+        self.raw_data=None
+        self.data_frame = data_frame
+        self.preprocessed_path = path
+        self.main()
+
+    def main(self):
+        self.data=self.run_operations(self.data_frame)
+        self.raw_data=self._copy_raw_data(self.data_frame)
+        return self
+
+    def run_operations(self):
+        start = time.time()
+        if pl.Path.exists(self.preprocessed_path):
+            self.data_frame = pd.read_parquet(self.preprocessed_path)
+        else:
+            title_imr = pl.Path(__file__).parent / 'data' / 'imdb.title.ratings.tsv'  # imr=id, metadata, rating
+            title_basics = pl.Path(__file__).parent / 'data' / 'imdb.title.basics.tsv'  #
+            title_basics_df = self.read_tsv_file(str(title_basics))
+            title_imr_df = self.read_tsv_file(str(title_imr))
+            self.data_frame = self.merge_dataframes(title_imr_df, title_basics_df)  # insert df to be merged
+            self.data_frame = self._purge_data(self.data_frame)  # retain data quality
+            self.data_frame.to_parquet(self.preprocessed_path)
+        print(f"Operation runtime: {time.time() - start}")
+        return self
+
     @staticmethod
-    def merge_dataframes(*args:pd.DataFrame):
+    def merge_dataframes(*args: pd.DataFrame):
         """Merges .tsv data files. Mutates self.data."""
-        result=args[0]
-        if len(args)>1:
-            for i in range(1,len(args)):
-                result=result.merge(args[i],on='tconst')
+        result = args[0]
+        if len(args) > 1:
+            for i in range(1, len(args)):
+                result = result.merge(args[i], on='tconst')
         return result
 
     @staticmethod
     def read_tsv_file(path: str):
         """Read TSV file from given path"""
-        path=pl.Path(path)
+        path = pl.Path(path)
         try:
-            read_tsv=pd.read_csv(path, delimiter='\t') #Read file
+            read_tsv = pd.read_csv(path, delimiter='\t')  # Read file
         except Exception as e:
             raise IOError(f"Failed to read CSV: {e}") from e
         return read_tsv
 
-    def _copy_raw_data(self, movie_agent:MovieAgent):
+    def _copy_raw_data(self, movie_agent: MovieAgent):
         """Copies the raw data of movieAgent object's df"""
-        self.raw_data=movie_agent.data
+        self.raw_data = movie_agent.data
         return self.raw_data
 
-    @staticmethod
-    def _purge_data(movie_agent:MovieAgent)->pd.DataFrame:
+    def _filter_rows(self, column:str, mask):
+        """Remove unwanted records internally."""
+        data:pd.DataFrame
+        data=self.data[self.data[column]==mask]
+        return data
+
+    def _purge_data(self, data_frame:pd.DataFrame) -> pd.DataFrame:
         """Remove excessive items with low votes, empty primary titles and genres."""
-        movie_agent.data=movie_agent.filter_rows('titleType','movie') #remove anything else than movie in records
-        movie_agent.data=movie_agent.data[(movie_agent.data['primaryTitle'].notna())&(movie_agent.data['genres'].notna())&(movie_agent.data['numVotes']>5000)] #Purge unsuitable titles
-        return movie_agent.data
+        data_frame = self._filter_rows('titleType', 'movie')  # remove anything else than movie in records
+        data_frame = data_frame[(data_frame['primaryTitle'].notna()) & (data_frame['genres'].notna()) & (data_frame['numVotes'] > 5000)]  # Purge unsuitable titles
+        return data_frame
     
 class HistoryLog():
     """Record, save locally and check previously recommended movies with IMDBid and timestamp."""
@@ -148,14 +157,15 @@ class HistoryLog():
     def _check_previously_recommended(self, candidates:pd.DataFrame):
         """"""
 
-class MovieSelector:
+class MovieFilter:
     """Class that internally selects and stores selected movies after user filter is applied.\n
     Carries MovieAgent dataframe and MovieAgentBuilder raw_data internally"""
+
     def __init__(self, movie_agent_builder:MovieAgentBuilder, filter_tools:list[list[str]]):
         """Requires movieAgentBuilder object to initialize
         filter_tools: column_name, operatr, value to be filtered"""
         self.randomizer=random.Random()
-        self.df=movie_agent_builder.movie_agent_object.data.copy()
+        self.df=movie_agent_builder.movie_agent.data.copy()
         self.raw_data=movie_agent_builder.raw_data.copy()
         self.condition = None
         self.sort_column = None
@@ -290,7 +300,7 @@ class AppManager():
         
     def _main(self):
         self.filter_tools:list[list[str]]=self.CLI.all_filter_tools
-        self.advice=MovieSelector(self.builder, self.filter_tools)
+        self.advice=MovieFilter(self.builder, self.filter_tools)
 
 if __name__ == '__main__':
     AppManager()
