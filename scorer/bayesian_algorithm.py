@@ -16,7 +16,7 @@ class MoviePicker():
         self._convert_dtypes()
         self.recommend()
         self.file_operator=MovieFileOperator(pd.DataFrame(self.picks), self.data)
-        print(self.picks, self.date)
+        print(self.data.to_string())
 
     def _convert_dtypes(self):
         """
@@ -108,13 +108,15 @@ class MovieFileOperator():
     """
 
     def __init__(self, picks_df:pd.DataFrame, main_data:pd.DataFrame):
-        """"""
+        """
+
+        """
         self.previous=None
         self.data=main_data
         self.picks_df=picks_df
         self.data_path=pl.Path(__file__).parent.parent / 'data' / 'main_data.parquet'
         self.previous_path=pl.Path(__file__).parent.parent / 'data' / 'previous_data.parquet'
-        self.bayesian_path= pl.Path(__file__).parent.parent / 'data' / 'bayesian_data.parquet'
+        self.bayesian_path=pl.Path(__file__).parent.parent / 'data' / 'bayesian_data.parquet'
         self._process_file_memory()
         self._process_file_save(self.picks_df)
 
@@ -122,23 +124,22 @@ class MovieFileOperator():
         """
         Orchestrate saving and expanding previous movies and bayesian scores.
         """
-        print(f'B_df:\n{self.bayesian.to_string()}\n')
         self.previous=pd.concat([self.previous,picks_df],ignore_index=True)
-        self.bayesian = pd.concat([self.bayesian, self.data], ignore_index=True)
+        self.bayesian=pd.concat([self.bayesian, self.data], ignore_index=True)
         self._save_file(self.data, self.data_path)
         self._save_file(self.bayesian,self.bayesian_path)
         self._save_file(self.previous,self.previous_path)
 
     def _process_file_memory(self):
         """
-
+        Load and clear duplicates from saved files.
         """
         self._load_memory()
-        self._clear_memory()
+        self._clear_memory_dupli()
 
-    def _clear_memory(self):
+    def _clear_memory_dupli(self):
         """
-
+        Drops duplicates.
         """
         self.data.drop_duplicates()
 
@@ -148,19 +149,19 @@ class MovieFileOperator():
         """
 
         data_load = self._load_file(self.data_path)
-        if data_load is not pd.DataFrame:
+        if not isinstance(data_load, pd.DataFrame):
             pass
         else:
             self.data = data_load
 
         previous_load = self._load_file(self.previous_path)
-        if previous_load is not pd.DataFrame:
+        if not isinstance(previous_load, pd.DataFrame):
             self.previous = pd.DataFrame(columns=['IMDBid', 'Date'])
         else:
             self.previous = previous_load
 
         bayesian_load = self._load_file(self.bayesian_path)
-        if bayesian_load is not pd.DataFrame:
+        if not isinstance(self.bayesian, pd.DataFrame):
             self.bayesian = pd.DataFrame(columns=['IMDBid', 'Date', 'Bayes Score', 'Decay Factor', 'Adjusted Score'])
         else:
             self.bayesian = bayesian_load
