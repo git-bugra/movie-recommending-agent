@@ -1,3 +1,4 @@
+from config import abstraction_dict as abdi
 import pandas as pd
 import datetime
 import pathlib as pl
@@ -7,7 +8,7 @@ class MoviePicker():
     """
     Algorithmic class that takes constrained data, outputs the best suitable movie.
     """
-    def __init__(self, candidates:pd.DataFrame):
+    def __init__(self, config:dict, candidates:pd.DataFrame):
         self.raw_data=candidates.copy()
         self.data=candidates.copy()
         self.date=datetime.date.today()
@@ -16,7 +17,6 @@ class MoviePicker():
         self._convert_dtypes()
         self.recommend()
         self.file_operator=MovieFileOperator(pd.DataFrame(self.picks), self.data)
-        print(self.data.to_string())
 
     def _convert_dtypes(self):
         """
@@ -107,16 +107,13 @@ class MovieFileOperator():
     Class that handles file operations for orchestrator class.
     """
 
-    def __init__(self, picks_df:pd.DataFrame, main_data:pd.DataFrame):
+    def __init__(self, config:dict):
         """
 
         """
-        self.previous=None
-        self.data=main_data
-        self.picks_df=picks_df
-        self.data_path=pl.Path(__file__).parent.parent / 'data' / 'main_data.parquet'
-        self.previous_path=pl.Path(__file__).parent.parent / 'data' / 'previous_data.parquet'
-        self.bayesian_path=pl.Path(__file__).parent.parent / 'data' / 'bayesian_data.parquet'
+        self.data_store={}
+        self.config=config
+        self.path=None
         self._process_file_memory()
         self._process_file_save(self.picks_df)
 
@@ -126,9 +123,7 @@ class MovieFileOperator():
         """
         self.previous=pd.concat([self.previous,picks_df],ignore_index=True)
         self.bayesian=pd.concat([self.bayesian, self.data], ignore_index=True)
-        self._save_file(self.data, self.data_path)
-        self._save_file(self.bayesian,self.bayesian_path)
-        self._save_file(self.previous,self.previous_path)
+        self._save_file() #TODO: fill up for abstraction
 
     def _process_file_memory(self):
         """
@@ -141,30 +136,20 @@ class MovieFileOperator():
         """
         Drops duplicates.
         """
-        self.data.drop_duplicates()
+        for file_name, df in self.data_store.items():
+            df.drop_duplicates()
 
     def _load_memory(self):
         """
-        Load all saved files and scores into the cache, if file not found, or corrupted, reset it.
+        Load all files and score into the cache, if file not found, or corrupted, reset it.
         """
-
-        data_load = self._load_file(self.data_path)
-        if not isinstance(data_load, pd.DataFrame):
-            pass
-        else:
-            self.data = data_load
-
-        previous_load = self._load_file(self.previous_path)
-        if not isinstance(previous_load, pd.DataFrame):
-            self.previous = pd.DataFrame(columns=['IMDBid', 'Date'])
-        else:
-            self.previous = previous_load
-
-        bayesian_load = self._load_file(self.bayesian_path)
-        if not isinstance(self.bayesian, pd.DataFrame):
-            self.bayesian = pd.DataFrame(columns=['IMDBid', 'Date', 'Bayes Score', 'Decay Factor', 'Adjusted Score'])
-        else:
-            self.bayesian = bayesian_load
+        for file_name, file_config in self.config.items():
+            file=self._load_file(file_config['path'])
+            if not isinstance(file, pd.DataFrame):
+                file=pd.DataFrame(columns=file_config['fallback'])
+            else:
+                pass
+            self.data_store[file_name]=file
         return True
 
     def _save_file(self, file: pd.DataFrame, path: pl.Path):
@@ -195,5 +180,7 @@ if __name__ == '__main__':
                 {'IMDBid': 'tt0133240', 'Primary Title': 'Casablanca', 'Average Rating': 8.5, 'Number of Votes': 6145618, 'Published': '1942', 'Genre': 'Action,Adventure,Animation'},
                 {'IMDBid': 'tt0133240', 'Primary Title': 'Metropolis', 'Average Rating': 9.5, 'Number of Votes': 75618, 'Published': '2020', 'Genre': 'Action,Adventure,Animation'}]
     candidates_df=pd.DataFrame(data)
-    algo=MoviePicker(candidates_df)
+    algo=MoviePicker(abdi, candidates_df)
+
+    #Tightly coupling of classes
     
