@@ -13,7 +13,7 @@ class MovieAgent():
         self.condition=None
     
     def rename_columns(self):
-        """Make columns in imdb .tsv files more readable and intuitive"""
+        """Make columns in imdb.tsv files more readable and intuitive"""
         try:    
             self.data:pd.DataFrame=self.data.rename(columns={'tconst': 'IMDBid',
                                     'averageRating': 'Average Rating',
