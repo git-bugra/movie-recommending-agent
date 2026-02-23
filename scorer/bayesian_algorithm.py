@@ -9,14 +9,14 @@ class MoviePicker():
     Algorithmic class that takes constrained data, outputs the best suitable movie.
     """
     def __init__(self, config:dict, candidates:pd.DataFrame):
+
         self.raw_data=candidates.copy()
         self.data=candidates.copy()
         self.date=datetime.date.today()
         self.picks=[]
-        self.file_operator = MovieFileOperator(pd.DataFrame(self.picks), self.data)
         self._convert_dtypes()
         self.recommend()
-        self.file_operator=MovieFileOperator(pd.DataFrame(self.picks), self.data)
+        self.file_operator=MovieFileOperator(config, {'previous_data': self.picks, 'bayesian_data': self.data})
 
     def _convert_dtypes(self):
         """
@@ -107,23 +107,25 @@ class MovieFileOperator():
     Class that handles file operations for orchestrator class.
     """
 
-    def __init__(self, config:dict):
+    def __init__(self, config:dict, concat:dict=None):
         """
 
         """
+        self.concat=concat
         self.data_store={}
         self.config=config
         self.path=None
         self._process_file_memory()
-        self._process_file_save(self.picks_df)
+        self._process_file_save()
 
-    def _process_file_save(self, picks_df):
+    def _process_file_save(self):
         """
         Orchestrate saving and expanding previous movies and bayesian scores.
         """
-        self.previous=pd.concat([self.previous,picks_df],ignore_index=True)
-        self.bayesian=pd.concat([self.bayesian, self.data], ignore_index=True)
-        self._save_file() #TODO: fill up for abstraction
+        self._concat_file()
+        for file in self.data_store:
+            self._save_file(file)
+        return self
 
     def _process_file_memory(self):
         """
@@ -152,11 +154,20 @@ class MovieFileOperator():
             self.data_store[file_name]=file
         return True
 
-    def _save_file(self, file: pd.DataFrame, path: pl.Path):
+    def _concat_file(self):
+        if self.concat is not None:
+            for file, value in self.concat.items():
+                if file in self.data_store:
+                    self.data_store[file]=pd.concat(objs=[self.data_store[file], value],ignore_index=True)
+        return self
+
+    def _save_file(self, file: str):
         """
         Save previously recommended movies df.
         """
-        file.to_parquet(str(path))
+
+        if file in self.data_store:
+                self.data_store[file].to_parquet(str(self.config[file]['path']))
         return self
 
     @staticmethod

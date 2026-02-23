@@ -15,6 +15,6 @@ abstraction_dict=\
         "main_data":
             {
                 "path": pl.Path(__file__).parent.parent / 'data' / 'main_data.parquet',
-                "fallback": None
+                "fallback": []
             }
     }
