@@ -1,4 +1,4 @@
-Following agent app gives out movie recommendations with details like IMDBid, genre, ratings and more included.
+Following agent app gives out movie recommendations.
 
 Minimal functional features:
     
@@ -19,10 +19,11 @@ Broad features (WIP):
     5. Login and have DB for user,
 
     6. Give recommendations based on user's previously watched list,
-Request OMDB API for live details
+    
+    7. Request OMDB API for live details
 
 
-Future Dev Plans (Hope in progress :D):
+Future Plans:
     
     1. Changed mindset feature: Movies user did not like very long time ago but considered classics
 
