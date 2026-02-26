@@ -1,6 +1,6 @@
 import pathlib as pl
 
-abstraction_dict=\
+file_config=\
     {
         "previous_data":
             {

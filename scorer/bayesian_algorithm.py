@@ -1,4 +1,4 @@
-from config import abstraction_dict as abdi
+from config import file_config as config_parser
 from test_data import data as data
 import pandas as pd
 import datetime
@@ -7,14 +7,13 @@ from pandas import Series
 
 class MoviePicker():
     """Algorithmic class that takes constrained data, outputs the best suitable movie."""
-    def __init__(self, config:dict, candidates:pd.DataFrame):
+    def __init__(self, candidates:pd.DataFrame, previously_recommended:set=None):
         self.raw_data=candidates.copy()
         self.data=candidates.copy()
         self.date=datetime.date.today()
+        self.previously_recommended=previously_recommended
         self.picks=[]
         self._convert_dtypes()
-        self.recommend()
-        self.file_operator=MovieFileOperator(config, {'previous_data': self.picks, 'bayesian_data': self.data})
 
     def recommend(self):
         """Orchestrator method for building and processing the candidates and giving output."""
@@ -52,7 +51,8 @@ class MoviePicker():
         """From score populated df, picks n amount of movies."""
         candidates=self.data.sort_values('Adjusted Score', ascending=False)
         for hashable, value in candidates.iterrows():
-            if value['IMDBid'] not in self.file_operator.data_store['previous_data']['IMDBid'].values and len(self.picks) < n:
+            #add self.previous with imdb ids
+            if value['IMDBid'] not in self.previously_recommended and len(self.picks) < n:
                 self.picks.append({'IMDBid': value['IMDBid'], 'Date': self.date})
             elif len(self.picks)>=n:
                 break
@@ -61,11 +61,14 @@ class MoviePicker():
     @staticmethod
     def _calculate_bayesian_score(movie, m, c):
         """
-        Calculate bayesian score for single movie.
-        movie: single pandas row
-        m: median of number of votes in entire df
-        C: mean of average rating in entire df
-        Returns: weighted score
+        Calculate bayesian score for a single movie.
+
+        Args:
+            movie: Single pandas row with all movie details.
+            m: Mean of number of votes in entire df.
+            c: Mean of average rating in entire df.
+        Returns:
+            Weighted Bayesian score as a float.
         """
         v=movie['Number of Votes']
         r=movie['Average Rating']
@@ -92,38 +95,31 @@ class MoviePicker():
 
 class MovieFileOperator():
     """Class that handles file operations for orchestrator class."""
-    def __init__(self, config:dict, concat:dict=None):
-        """Stores passed config and concat dictionary.
-
-        config: file that has properties that provide abstractions.
-        concat: optional parameter for expanding dataframes."""
-        self.concat=concat
+    def __init__(self, config:dict):
+        """
+        Args:
+            config: file with properties that provide abstractions for file operations.
+            """
+        self.concat=None
         self.data_store={}
         self.config=config
         self.path=None
-        self.main()
 
-    def main(self):
-        """Orchestrate load, expand, and save file operations."""
-        self._process_file_memory()
-        self._concat_file()
-        self._process_file_save()
-
-    def _process_file_save(self):
-        """Orchestrate saving file."""
+    def save_all_file(self):
+        """Process saving all files."""
         for file in self.data_store:
             self._save_file(file)
         return self
 
-    def _process_file_memory(self):
-        """Load and clear duplicates from saved files."""
+    def load_all_file(self):
+        """Load and clear duplicates from all saved files."""
         self._load_memory()
         self._clear_memory_dupli()
 
     def _clear_memory_dupli(self):
-        """Drop duplicates from pandas dataframes."""
+        """Drop duplicates from all loaded files."""
         for file_name, df in self.data_store.items():
-            df.drop_duplicates()
+            self.data_store[file_name]=df.drop_duplicates()
 
     def _load_memory(self):
         """Load all files or reset it to given fallback property in config file."""
@@ -136,8 +132,9 @@ class MovieFileOperator():
             self.data_store[file_name]=file
         return True
 
-    def _concat_file(self):
-        """Merge dataframes given dict argument to self.data_store."""
+    def concat_file(self, concat:dict=None):
+        """Merge dataframes given dict argument."""
+        self.concat=concat
         if self.concat is not None:
             for file, value in self.concat.items():
                 if file in self.data_store:
@@ -161,8 +158,11 @@ class MovieFileOperator():
         return file
 
 if __name__ == '__main__':
-
-    data=data #for reminder
     candidates_df=pd.DataFrame(data)
-    algo=MoviePicker(abdi, candidates_df)
+    file_op=MovieFileOperator(config_parser)
+    file_op.load_all_file()
+    picker=MoviePicker(candidates_df)
+    picker.recommend()
+    file_op.concat_file({'previous_data': picker.picks, 'bayesian_data': picker.data})
+    file_op.save_all_file()
     
