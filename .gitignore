@@ -9,6 +9,7 @@ core/bayesian_algorithm.py
 # Local data files
 data/*.parquet
 data/*.tsv
+*.tsv
 
 # Vim
 *.un~
