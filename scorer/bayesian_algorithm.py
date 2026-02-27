@@ -8,6 +8,7 @@ from pandas import Series
 class MoviePicker():
     """Algorithmic class that takes constrained data, outputs the best suitable movie."""
     def __init__(self, candidates:pd.DataFrame, previously_recommended:set=None):
+        if previously_recommended is None: previously_recommended=set()
         self.raw_data=candidates.copy()
         self.data=candidates.copy()
         self.date=datetime.date.today()
@@ -51,7 +52,6 @@ class MoviePicker():
         """From score populated df, picks n amount of movies."""
         candidates=self.data.sort_values('Adjusted Score', ascending=False)
         for hashable, value in candidates.iterrows():
-            #add self.previous with imdb ids
             if value['IMDBid'] not in self.previously_recommended and len(self.picks) < n:
                 self.picks.append({'IMDBid': value['IMDBid'], 'Date': self.date})
             elif len(self.picks)>=n:
@@ -133,12 +133,16 @@ class MovieFileOperator():
         return True
 
     def concat_file(self, concat:dict=None):
-        """Merge dataframes given dict argument."""
+        """Concat dataframes for expanding files given in config.py.
+
+        Args:
+            concat: dict that maps from file names to their update.
+            """
         self.concat=concat
         if self.concat is not None:
             for file, value in self.concat.items():
                 if file in self.data_store:
-                    self.data_store[file]=pd.concat(objs=[self.data_store[file], value],ignore_index=True)
+                    self.data_store[file]=pd.concat(objs=[self.data_store[file], value], ignore_index=True)
         return self
 
     def _save_file(self, file: str):
@@ -158,11 +162,12 @@ class MovieFileOperator():
         return file
 
 if __name__ == '__main__':
+
     candidates_df=pd.DataFrame(data)
     file_op=MovieFileOperator(config_parser)
     file_op.load_all_file()
-    picker=MoviePicker(candidates_df)
-    picker.recommend()
-    file_op.concat_file({'previous_data': picker.picks, 'bayesian_data': picker.data})
+    previous_ids=set(file_op.data_store.get('previous_data', pd.DataFrame()).get('IMDBid', []))
+    movie_picker=MoviePicker(candidates_df, previous_ids)
+    movie_picker.recommend()
+    file_op.concat_file({'previous_data': pd.DataFrame(movie_picker.picks), 'bayesian_data': movie_picker.data})
     file_op.save_all_file()
-    
