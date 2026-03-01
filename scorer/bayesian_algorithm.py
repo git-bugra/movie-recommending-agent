@@ -1,9 +1,9 @@
-from config import file_config as config_parser
 from test_data import data as data
 import pandas as pd
 import datetime
 import pathlib as pl
 from pandas import Series
+import json
 
 class MoviePicker():
     """Algorithmic class that takes constrained data, outputs the best suitable movie."""
@@ -95,14 +95,12 @@ class MoviePicker():
 
 class MovieFileOperator():
     """Class that handles file operations for orchestrator class."""
-    def __init__(self, config:dict):
-        """
-        Args:
-            config: file with properties that provide abstractions for file operations.
-            """
+    def __init__(self, json_cfg:str="file_operations.json"):
+        """"""
         self.concat=None
         self.data_store={}
-        self.config=config
+        self.json=json_cfg
+        self.config:dict=self._load_config()
         self.path=None
 
     def save_all_file(self):
@@ -133,7 +131,7 @@ class MovieFileOperator():
         return True
 
     def concat_file(self, concat:dict=None):
-        """Concat dataframes for expanding files given in config.py.
+        """Concat dataframes for expanding files given in file_operations.json.
 
         Args:
             concat: dict that maps from file names to their update.
@@ -161,10 +159,26 @@ class MovieFileOperator():
             return False
         return file
 
+    def _load_config(self):
+        """Load configuration file for file operations."""
+        try:
+            with open(self.json, "r") as f:
+                config_dict=json.load(f)
+        except ValueError:
+            raise Exception('Failed to open .json config.')
+        except FileNotFoundError:
+            raise Exception('Failed to find .json config.')
+        for key, value in config_dict.items():
+            try:
+                value['path'] = pl.Path(__file__).parent.parent / value['path']
+            except KeyError:
+                raise ValueError(f'Failed to find path for {key}')
+        return config_dict
+
 if __name__ == '__main__':
 
     candidates_df=pd.DataFrame(data)
-    file_op=MovieFileOperator(config_parser)
+    file_op=MovieFileOperator()
     file_op.load_all_file()
     previous_ids=set(file_op.data_store.get('previous_data', pd.DataFrame()).get('IMDBid', []))
     movie_picker=MoviePicker(candidates_df, previous_ids)

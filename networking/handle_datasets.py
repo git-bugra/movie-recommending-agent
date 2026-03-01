@@ -5,8 +5,8 @@ from tqdm import tqdm
 
 class DatasetDownloader():
 
-    def __init__(self):
-        self.json='dataset.json'
+    def __init__(self, json_cfg:str="file_operations.json"):
+        self.json=json_cfg
         self.response=None
 
     def _load_config(self):
