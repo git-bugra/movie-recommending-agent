@@ -129,33 +129,6 @@ class DataLoader():
         data_frame = self._filter_rows('titleType', 'movie')  # remove anything else than movie in records
         data_frame = data_frame[(data_frame['primaryTitle'].notna()) & (data_frame['genres'].notna()) & (data_frame['numVotes'] > 5000)]  # Purge unsuitable titles
         return data_frame
-    
-class HistoryLog():
-    """Record, save locally and check previously recommended movies with IMDBid and timestamp."""
-    
-    def __init__(self, candidates:pd.DataFrame):
-        self.history_path=pl.Path(__file__).parent / 'data' / 'previously_rec.csv'
-        self.previous=None
-        self.current=None #not saved but previously recommended files needs being saved
-        self.candidates=candidates
-        self.main()
-
-    def main(self):
-        self._read_file()
-
-    def _read_file(self):
-        if self.history_path.is_file():
-            self.previous=pd.read_csv(self.history_path)
-            return True
-        else:
-            self.previous=pd.DataFrame()
-            return False
-    
-    def _save_current_recommended(self, ):
-        """"""
-
-    def _check_previously_recommended(self, candidates:pd.DataFrame):
-        """"""
 
 class MovieFilter:
     """Class that internally selects and stores selected movies after user filter is applied.\n
