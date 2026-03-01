@@ -99,7 +99,8 @@ class MovieFileOperator():
         """"""
         self.concat=None
         self.data_store={}
-        self.json=json_cfg
+        self.json_cfg=json_cfg
+        self.config_dir='config'
         self.config:dict=self._load_config()
         self.path=None
 
@@ -162,7 +163,7 @@ class MovieFileOperator():
     def _load_config(self):
         """Load configuration file for file operations."""
         try:
-            with open(self.json, "r") as f:
+            with open(pl.Path(__file__).parent/self.config_dir/self.json_cfg, "r") as f:
                 config_dict=json.load(f)
         except ValueError:
             raise Exception('Failed to open .json config.')

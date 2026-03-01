@@ -5,8 +5,9 @@ from tqdm import tqdm
 
 class DatasetDownloader():
 
-    def __init__(self, json_cfg:str="file_operations.json"):
-        self.json=json_cfg
+    def __init__(self, json_cfg:str="dataset.json"):
+        self.json_cfg=json_cfg
+        self.config_dir='config'
         self.response=None
 
     def _load_config(self):
@@ -14,7 +15,7 @@ class DatasetDownloader():
         Load configuration file for file operations.
         """
         try:
-            with open(self.json, "r") as f:
+            with open(pl.Path(__file__).parent/self.config_dir/self.json_cfg, "r") as f:
                 return json.load(f)
         except ValueError:
             raise Exception('Failed to open .json config.')
