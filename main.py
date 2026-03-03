@@ -6,12 +6,30 @@ from ui.user_interface import UserInterface
 from networking import handle_datasets as hd
 
 class MovieAgent():
-    """Main object responsible for clearing, fixing columns and internally consume columns.\n
-    Carries data internally."""
-    def __init__(self):
-        self.data:pd.DataFrame=pd.DataFrame()
-        self.condition=None
+    """Orchestral class for managing callable hierarchy and the state of dataframes."""
 
+    def __init__(self):
+        self.data: pd.DataFrame = pd.DataFrame()
+        self.preprocessed_path = pl.Path(__file__).parent / 'data' / 'preprocessed_data.parquet'
+        self.file_assister = DataLoader(self.data, self.preprocessed_path)
+        self.raw_data=None
+        self.condition=None
+        self._build_agent()
+
+    def _build_agent(self):
+        """Orchestrates the flow of code for easy readability."""
+        self.mutate_dataframe(self)
+
+    def mutate_dataframe(self):
+        """Setup imdb data and call on files to be modified"""
+        self.rename_columns({'tconst': 'IMDBid','averageRating': 'Average Rating',
+                                    'numVotes': 'Number of Votes','titleType': 'Title Type',
+                                    'primaryTitle': 'Primary Title','originalTitle': 'Original Title','isAdult': 'Is Adult',
+                                    'startYear': 'Published','endYear': 'End Year','runtimeMinutes': 'Run Time Minutes','genres': 'Genre'}) #rename the columns to be more intuitive
+        self.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre') #Mutate only wanted columns
+        self.raw_data=self.file_assister.raw_data
+        return self
+    
     def rename_columns(self, columns:dict):
         """Make columns in imdb .tsv files more readable and intuitive"""
         try:    
@@ -38,31 +56,6 @@ class MovieAgent():
             self.data=self.data[self.condition]
             self.condition=None #Consume condition after applying for predictable code
         return self
-
-class MovieAgentBuilder():
-    """Orchestral class for managing callable hierarchy and the internal state of the object MovieAgent.\n
-    Orchestrates the MovieAgent object(s) only."""
-
-    def __init__(self):
-        self.raw_data=None
-        self.movie_agent=MovieAgent()
-        self.preprocessed_path = pl.Path(__file__).parent / 'data' / 'preprocessed_data.parquet'
-        self.file_assister = DataLoader(self.movie_agent.data, self.preprocessed_path)
-        self._build_agent()
-
-    def _build_agent(self):
-        """Orchestrates the flow of code for easy readability."""
-        self.mutate_dataframe(self.movie_agent)
-
-    def mutate_dataframe(self, movie_agent:MovieAgent):
-        """Setup imdb data and call on files to be modified"""
-        movie_agent.rename_columns({'tconst': 'IMDBid','averageRating': 'Average Rating',
-                                    'numVotes': 'Number of Votes','titleType': 'Title Type',
-                                    'primaryTitle': 'Primary Title','originalTitle': 'Original Title','isAdult': 'Is Adult',
-                                    'startYear': 'Published','endYear': 'End Year','runtimeMinutes': 'Run Time Minutes','genres': 'Genre'}) #rename the columns to be more intuitive
-        movie_agent.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre') #Mutate only wanted columns
-        self.raw_data=self.file_assister.raw_data
-        return movie_agent
 
 class DataLoader():
 
@@ -127,7 +120,7 @@ class MovieFilter:
     """Class that internally selects and stores selected movies after user filter is applied.\n
     Carries MovieAgent dataframe and MovieAgentBuilder raw_data internally"""
 
-    def __init__(self, movie_agent_builder:MovieAgentBuilder, filter_tools:list[list[str]]):
+    def __init__(self, movie_agent_builder:MovieAgent, filter_tools:list[list[str]]):
         """Requires movieAgentBuilder object to initialize
         filter_tools: column_name, operatr, value to be filtered"""
         self.df=movie_agent_builder.movie_agent.data.copy()
@@ -259,7 +252,7 @@ class AppManager():
     """Main orchestrator that assembles necessary classes and communication."""
     
     def __init__(self):
-        self.builder=MovieAgentBuilder()
+        self.builder=MovieAgent()
         self.CLI=UserInterface() #Expects prompts like Average Rating>5 or Shawshank Redemption
         self._main()
         
