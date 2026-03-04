@@ -5,12 +5,14 @@
     {
       "name": "ratings",
       "url": "https://datasets.imdbws.com/title.ratings.tsv.gz",
-      "filename": "imdb.title.ratings.tsv"
+      "filename": "imdb.title.ratings.tsv",
+      "path": "data/imdb.title.ratings.tsv"
     },
     {
       "name": "basics",
       "url": "https://datasets.imdbws.com/title.basics.tsv.gz",
-      "filename": "imdb.title.basics.tsv"
+      "filename": "imdb.title.basics.tsv",
+      "path": "data/imdb.title.basics.tsv"
     }
   ]
 }

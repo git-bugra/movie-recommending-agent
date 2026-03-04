@@ -1,7 +1,7 @@
 {
   "preprocessed_data":
-  {
-    "dir": "data/",
-    "filename": "preprocessed_data.parquet"
-  }
+    {
+        "path": "data/preprocessed_data.parquet",
+        "filename": "preprocessed_data.parquet"
+    }
 }

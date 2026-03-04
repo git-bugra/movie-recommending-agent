@@ -1,34 +1,23 @@
 import pandas as pd
 import pathlib as pl
+import json
 import pdb
 import time
 from ui.user_interface import UserInterface
 from networking import handle_datasets as hd
 
 class MovieAgent():
-    """Orchestral class for managing callable hierarchy and the state of dataframes."""
+    """Container class for managing the state of the dataframe"""
 
     def __init__(self):
-        self.data: pd.DataFrame = pd.DataFrame()
-        self.preprocessed_path = pl.Path(__file__).parent / 'data' / 'preprocessed_data.parquet'
-        self.file_assister = DataLoader(self.data, self.preprocessed_path)
+        self.data=pd.DataFrame()
         self.raw_data=None
         self.condition=None
-        self._build_agent()
+        self.data_pipeline=DataPipeline()
 
     def _build_agent(self):
         """Orchestrates the flow of code for easy readability."""
         self.mutate_dataframe(self)
-
-    def mutate_dataframe(self):
-        """Setup imdb data and call on files to be modified"""
-        self.rename_columns({'tconst': 'IMDBid','averageRating': 'Average Rating',
-                                    'numVotes': 'Number of Votes','titleType': 'Title Type',
-                                    'primaryTitle': 'Primary Title','originalTitle': 'Original Title','isAdult': 'Is Adult',
-                                    'startYear': 'Published','endYear': 'End Year','runtimeMinutes': 'Run Time Minutes','genres': 'Genre'}) #rename the columns to be more intuitive
-        self.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre') #Mutate only wanted columns
-        self.raw_data=self.file_assister.raw_data
-        return self
     
     def rename_columns(self, columns:dict):
         """Make columns in imdb .tsv files more readable and intuitive"""
@@ -48,6 +37,15 @@ class MovieAgent():
         except KeyError as e:raise KeyError(f"With given arguments, column not found: {e}") from e
         return self
 
+    def mutate_dataframe(self):
+        """Setup imdb data and call on files to be modified"""
+        self.rename_columns({'tconst': 'IMDBid','averageRating': 'Average Rating',
+                                    'numVotes': 'Number of Votes','titleType': 'Title Type',
+                                    'primaryTitle': 'Primary Title','originalTitle': 'Original Title','isAdult': 'Is Adult',
+                                    'startYear': 'Published','endYear': 'End Year','runtimeMinutes': 'Run Time Minutes','genres': 'Genre'}) #rename the columns to be more intuitive
+        self.select_columns('IMDBid', 'Average Rating', 'Number of Votes', 'Primary Title', 'Published', 'Genre') #Mutate only wanted columns
+        return self
+
     def _apply_column_selection(self):
         """Based on condition, mutate the data to display"""
         if self.data is None:
@@ -56,53 +54,6 @@ class MovieAgent():
             self.data=self.data[self.condition]
             self.condition=None #Consume condition after applying for predictable code
         return self
-
-class DataLoader():
-
-    def __init__(self, data_frame:pd.DataFrame, path):
-        self.data=None
-        self.raw_data=data_frame
-        self.data_frame=data_frame
-        self.preprocessed_path=path
-        self.main()
-
-    def main(self):
-        self.data=self._run_operations(self.data_frame)
-        return self
-
-    def _run_operations(self):
-        start = time.time()
-        if pl.Path.exists(self.preprocessed_path):
-            self.data_frame = pd.read_parquet(self.preprocessed_path)
-        else:
-            title_imr = pl.Path(__file__).parent / 'data' / 'imdb.title.ratings.tsv'  # imr=id, metadata, rating
-            title_basics = pl.Path(__file__).parent / 'data' / 'imdb.title.basics.tsv'  #
-            title_basics_df = self.read_tsv_file(str(title_basics))
-            title_imr_df = self.read_tsv_file(str(title_imr))
-            self.data_frame = self.merge_dataframes(title_imr_df, title_basics_df)  # insert df to be merged
-            self.data_frame = self._purge_data()  # retain data quality
-            self.data_frame.to_parquet(self.preprocessed_path)
-        print(f"Operation runtime: {time.time() - start}")
-        return self
-
-    @staticmethod
-    def merge_dataframes(*args: pd.DataFrame):
-        """Merges .tsv data files. Mutates self.data."""
-        result = args[0]
-        if len(args) > 1:
-            for i in range(1, len(args)):
-                result = result.merge(args[i], on='tconst')
-        return result
-
-    @staticmethod
-    def read_tsv_file(path: str):
-        """Read TSV file from given path"""
-        path = pl.Path(path)
-        try:
-            read_tsv = pd.read_csv(path, delimiter='\t')  # Read file
-        except Exception as e:
-            raise IOError(f"Failed to read CSV: {e}") from e
-        return read_tsv
 
     def _filter_rows(self, column:str, mask):
         """Remove unwanted records internally."""
@@ -114,6 +65,107 @@ class DataLoader():
         """Remove excessive items with low votes, empty primary titles and genres."""
         self.data_frame = self._filter_rows('titleType', 'movie')  # remove anything else than movie in records
         self.data_frame = self.data_frame[(self.data_frame['primaryTitle'].notna()) & (self.data_frame['genres'].notna()) & (self.data_frame['numVotes'] > 5000)]  # Purge unsuitable titles
+        return self
+
+class DataPipeline():
+    """"""
+
+    def __init__(self, json_cfg:tuple=("main.json", "dataset.json")):
+        self.config_dir='config'
+        self.json_cfg=json_cfg
+        self.config_dict={}
+        self.preprocessed_path=None
+        self.tsv_path=[]
+        self.data_loader=DataLoader()
+
+    def main(self):
+        """"""
+        self._load_config()
+        self._convert_config_pl()
+        self._fetch_paths()
+        self.build_data()
+
+    def _load_config(self):
+        """Load configuration file for file operations."""
+        for config_file in self.json_cfg:
+            try:
+                with open(pl.Path(__file__).parent / self.config_dir / config_file, "r") as f:
+                    self.config_dict.update(json.load(f))
+            except ValueError:
+                raise Exception('Failed to open .json config.')
+            except FileNotFoundError:
+                raise Exception('Failed to find .json config.')
+        return self
+
+    def _convert_config_pl(self):
+        """Convert string paths to pathlib.Path objects."""
+        for key, value in self.config_dict.items():
+            try:
+                value['path'] = pl.Path(__file__).parent.parent / value['path']
+            except KeyError:
+                raise ValueError(f'Failed to find path for {key}')
+
+    def _fetch_paths(self):
+        """Fetch tsv file and preprocessed file paths"""
+        for key, value in self.config_dict.items():
+            if 'preprocessed' in str(key):
+                self.preprocessed_path = value['path']
+            if 'dataset' in str(key):
+                self.tsv_path.append(value['path'])
+        return self
+
+    def build_data(self):
+        data_frames=[]
+        if pl.Path.exists(self.preprocessed_path):
+            data=self.data_loader.read_file(str(self.preprocessed_path), 'parquet')
+        else:
+            for path in self.tsv_path:
+                data_frames.append(self.data_loader.read_file(str(path), 'tsv'))
+            data=self.data_loader.merge_dataframes(*data_frames, on='tconst')
+            self.data_loader.save_file(data, self.preprocessed_path)
+        return data
+
+class DataLoader():
+    """"""
+
+    def __init__(self):
+        self.data=None
+
+    @staticmethod
+    def merge_dataframes(*args: pd.DataFrame, on=None):
+        """Merge pandas Dataframe objects."""
+        if on is None:
+            raise ValueError('on is required')
+        result = args[0]
+        if len(args) > 1:
+            for i in range(1, len(args)):
+                result = result.merge(args[i], on=on)
+        return result
+
+    @staticmethod
+    def read_file(path:str, file_type:str):
+        """Read TSV file from given path"""
+        path = pl.Path(path)
+        if file_type.strip().lower() == 'tsv':
+            try:
+                file = pd.read_csv(path, delimiter='\t')  # Read file
+            except Exception as e:
+                raise IOError(f"Failed to read CSV/TSV: {e}") from e
+        elif file_type.strip().lower() == 'parquet':
+            try:
+                file = pd.read_parquet(path)  # Read file
+            except Exception as e:
+                raise IOError(f"Failed to read parquet: {e}") from e
+        else:
+            raise ValueError(f"Failed to read file: {path}")
+        return file
+
+    def save_file(self, file:pd.DataFrame, path):
+        """Save file to internal config path."""
+        try:
+            file.to_parquet(path)
+        except Exception as e:
+            raise IOError(f"Failed to save file: {e}") from e
         return self
 
 class MovieFilter:

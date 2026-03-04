@@ -101,7 +101,7 @@ class MovieFileOperator():
         self.data_store={}
         self.json_cfg=json_cfg
         self.config_dir='config'
-        self.config:dict=self._load_config()
+        self.config_dict:dict=self._load_config()
         self.path=None
 
     def save_all_file(self):
@@ -122,7 +122,7 @@ class MovieFileOperator():
 
     def _load_memory(self):
         """Load all files or reset it to given fallback property in config file."""
-        for file_name, file_config in self.config.items():
+        for file_name, file_config in self.config_dict.items():
             file=self._load_file(file_name)
             if not isinstance(file, pd.DataFrame):
                 file=pd.DataFrame(columns=file_config['fallback'])
@@ -147,13 +147,13 @@ class MovieFileOperator():
     def _save_file(self, file: str):
         """Save file to internal config path."""
         if file in self.data_store:
-            self.data_store[file].to_parquet(str(self.config[file]['path']))
+            self.data_store[file].to_parquet(str(self.config_dict[file]['path']))
         return self
 
     def _load_file(self, file:str):
         """Load file from internal config path."""
         try:
-            file=pd.read_parquet(str(self.config[file]['path']))
+            file=pd.read_parquet(str(self.config_dict[file]['path']))
         except FileNotFoundError:
             return False
         except ValueError:
