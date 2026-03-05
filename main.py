@@ -15,9 +15,11 @@ class MovieAgent():
         self.condition=None
         self.data_pipeline=DataPipeline()
 
-    def _build_agent(self):
+    def build_agent(self):
         """Orchestrates the flow of code for easy readability."""
-        self.mutate_dataframe(self)
+        self.data = self.data_pipeline.main()
+        self.mutate_dataframe()
+        self._purge_data()
     
     def rename_columns(self, columns:dict):
         """Make columns in imdb .tsv files more readable and intuitive"""
@@ -68,7 +70,7 @@ class MovieAgent():
         return self
 
 class DataPipeline():
-    """"""
+    """Orchestrator class owns DataLoader for external pandas dataframe operations."""
 
     def __init__(self, json_cfg:tuple=("main.json", "dataset.json")):
         self.config_dir='config'
@@ -83,7 +85,7 @@ class DataPipeline():
         self._load_config()
         self._convert_config_pl()
         self._fetch_paths()
-        self.build_data()
+        return self.build_data()
 
     def _load_config(self):
         """Load configuration file for file operations."""
@@ -115,25 +117,30 @@ class DataPipeline():
         return self
 
     def build_data(self):
+        """Read if processed file exists, else run operations to initiate one."""
         data_frames=[]
         if pl.Path.exists(self.preprocessed_path):
             data=self.data_loader.read_file(str(self.preprocessed_path), 'parquet')
         else:
             for path in self.tsv_path:
                 data_frames.append(self.data_loader.read_file(str(path), 'tsv'))
-            data=self.data_loader.merge_dataframes(*data_frames, on='tconst')
+            data=self.data_loader.merge_dataframes(*data_frames, on='IMDBid')
             self.data_loader.save_file(data, self.preprocessed_path)
+        print(data.to_string())
         return data
 
 class DataLoader():
-    """"""
+    """Pandas dataframe operations class without any business knowledge"""
 
     def __init__(self):
         self.data=None
 
     @staticmethod
     def merge_dataframes(*args: pd.DataFrame, on=None):
-        """Merge pandas Dataframe objects."""
+        """Merge pandas Dataframe objects.
+
+        Args:
+            on: specific column to merge on"""
         if on is None:
             raise ValueError('on is required')
         result = args[0]
@@ -144,7 +151,11 @@ class DataLoader():
 
     @staticmethod
     def read_file(path:str, file_type:str):
-        """Read TSV file from given path"""
+        """Read TSV file from given path
+
+        Args:
+            path: read from
+            file_type: tsv or csv"""
         path = pl.Path(path)
         if file_type.strip().lower() == 'tsv':
             try:
@@ -161,7 +172,7 @@ class DataLoader():
         return file
 
     def save_file(self, file:pd.DataFrame, path):
-        """Save file to internal config path."""
+        """Save file to given path."""
         try:
             file.to_parquet(path)
         except Exception as e:
@@ -172,11 +183,11 @@ class MovieFilter:
     """Class that internally selects and stores selected movies after user filter is applied.\n
     Carries MovieAgent dataframe and MovieAgentBuilder raw_data internally"""
 
-    def __init__(self, movie_agent_builder:MovieAgent, filter_tools:list[list[str]]):
+    def __init__(self, movie_agent:MovieAgent, filter_tools:list[list[str]]):
         """Requires movieAgentBuilder object to initialize
         filter_tools: column_name, operatr, value to be filtered"""
-        self.df=movie_agent_builder.movie_agent.data.copy()
-        self.raw_data=movie_agent_builder.raw_data.copy()
+        self.df=movie_agent.data.copy()
+        self.raw_data=movie_agent.raw_data.copy()
         self.condition = None
         self.sort_column = None
         self.sort_ascending = True
@@ -304,13 +315,15 @@ class AppManager():
     """Main orchestrator that assembles necessary classes and communication."""
     
     def __init__(self):
-        self.builder=MovieAgent()
-        self.CLI=UserInterface() #Expects prompts like Average Rating>5 or Shawshank Redemption
+        self.agent=MovieAgent()
+        #self.CLI=UserInterface() #Expects prompts like Average Rating>5 or Shawshank Redemption
         self._main()
         
     def _main(self):
-        self.filter_tools:list[list[str]]=self.CLI.all_filter_tools
-        self.advice=MovieFilter(self.builder, self.filter_tools)
+        """"""
+        self.agent.build_agent()
+        #self.filter_tools:list[list[str]]=self.CLI.all_filter_tools
+        #self.advice=MovieFilter(self.builder, self.filter_tools)
 
 if __name__ == '__main__':
     AppManager()
