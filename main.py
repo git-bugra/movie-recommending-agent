@@ -18,8 +18,9 @@ class MovieAgent():
     def build_agent(self):
         """Orchestrates the flow of code for easy readability."""
         self.data = self.data_pipeline.main()
-        self.mutate_dataframe()
+        print(self.data.columns)
         self._purge_data()
+        self.mutate_dataframe()
     
     def rename_columns(self, columns:dict):
         """Make columns in imdb .tsv files more readable and intuitive"""
@@ -83,8 +84,8 @@ class DataPipeline():
     def main(self):
         """"""
         self._load_config()
-        self._convert_config_pl()
         self._fetch_paths()
+        self._convert_config_pl()
         return self.build_data()
 
     def _load_config(self):
@@ -102,17 +103,18 @@ class DataPipeline():
     def _convert_config_pl(self):
         """Convert string paths to pathlib.Path objects."""
         for key, value in self.config_dict.items():
-            try:
-                value['path'] = pl.Path(__file__).parent.parent / value['path']
-            except KeyError:
-                raise ValueError(f'Failed to find path for {key}')
+            if isinstance(value, dict):
+                try:
+                    value['path'] = pl.Path(__file__).parent.parent / value['path']
+                except KeyError:
+                    raise ValueError(f'Failed to find path for {key}')
 
     def _fetch_paths(self):
         """Fetch tsv file and preprocessed file paths"""
         for key, value in self.config_dict.items():
             if 'preprocessed' in str(key):
                 self.preprocessed_path = value['path']
-            if 'dataset' in str(key):
+            if 'imdb' in str(key):
                 self.tsv_path.append(value['path'])
         return self
 
@@ -126,7 +128,6 @@ class DataPipeline():
                 data_frames.append(self.data_loader.read_file(str(path), 'tsv'))
             data=self.data_loader.merge_dataframes(*data_frames, on='IMDBid')
             self.data_loader.save_file(data, self.preprocessed_path)
-        print(data.to_string())
         return data
 
 class DataLoader():
@@ -159,7 +160,7 @@ class DataLoader():
         path = pl.Path(path)
         if file_type.strip().lower() == 'tsv':
             try:
-                file = pd.read_csv(path, delimiter='\t')  # Read file
+                file = pd.read_csv(path, delimiter='\t', encoding='latin-1', on_bad_lines='skip')  # Read file
             except Exception as e:
                 raise IOError(f"Failed to read CSV/TSV: {e}") from e
         elif file_type.strip().lower() == 'parquet':
