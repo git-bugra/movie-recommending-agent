@@ -136,6 +136,7 @@ class DataPipeline():
                 data_frames.append(self.data_loader.read_file(str(path), 'tsv'))
             data=self.data_loader.merge_dataframes(*data_frames, on='tconst')
             self.data_loader.save_file(data, self.preprocessed_path)
+        print('file load complete!')
         return data
 
 class DataLoader():
