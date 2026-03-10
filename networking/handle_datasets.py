@@ -4,7 +4,6 @@ import pathlib as pl
 import gzip
 from tqdm import tqdm
 
-
 class DatasetDownloader():
 
     def __init__(self, json_cfg:str="dataset.json"):
@@ -17,6 +16,7 @@ class DatasetDownloader():
         """
         Load configuration file for file operations.
         """
+        pl.Path.mkdir(pl.Path(__file__).parent.parent/self.config_dir, parents=True, exist_ok=True)
         try:
             with open(pl.Path(__file__).parent.parent/self.config_dir/self.json_cfg, "r") as f:
                 return json.load(f)

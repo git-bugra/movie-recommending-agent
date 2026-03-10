@@ -1,10 +1,13 @@
 import pandas as pd
 import pathlib as pl
 import json
-import pdb
-import time
+import logging
 from ui.user_interface import UserInterface
 from networking import handle_datasets as nw
+from logs import log_handler
+
+log_handler.LogHandler()
+logger=logging.getLogger(__name__)
 
 class MovieAgent():
     """Container class for managing the state of the dataframe"""
@@ -128,15 +131,15 @@ class DataPipeline():
         """Read if processed file exists, else run operations to initiate one."""
         data_frames=[]
         if pl.Path.exists(self.preprocessed_path):
-            print('loading preprocessed file...')
+            logger.info('loading preprocessed file...')
             data=self.data_loader.read_file(str(self.preprocessed_path), 'parquet')
         else:
             for path in self.tsv_path:
-                print('loading tsv file...')
+                logger.info('loading tsv file...')
                 data_frames.append(self.data_loader.read_file(str(path), 'tsv'))
             data=self.data_loader.merge_dataframes(*data_frames, on='tconst')
             self.data_loader.save_file(data, self.preprocessed_path)
-        print('file load complete!')
+        logger.info('file load complete!')
         return data
 
 class DataLoader():
@@ -215,8 +218,8 @@ class MovieFilter:
         candidates=self.apply_all_filters(filter_tools)
         self.configure_sort('Average Rating', False)
         filtered_candidates=self.sort_candidates(candidates) 
-        print('\033c') #Remove previous lines
-        print(filtered_candidates.to_string(index=False, max_colwidth=45))
+        logger.info('\033c') #Remove previous lines
+        logger.info(filtered_candidates.to_string(index=False, max_colwidth=45))
         return filtered_candidates
     
     @staticmethod

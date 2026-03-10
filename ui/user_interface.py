@@ -1,5 +1,8 @@
 import string
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UserInterface():
     '''Asks user input for filteration such as: Average Rating, >, 5'''
@@ -54,7 +57,7 @@ class UserInterface():
             pass
         elif user_delimiter in string.punctuation.replace(',', ''):self.delimiter=user_delimiter
         else:
-            print('Delimiter configuration failed. Set up as default. ("|")')
+            logger.info('Delimiter configuration failed. Set up as default. ("|")')
         return self.delimiter
 
     def _parse_delimiter(self, delimiter:str, user_input:str):
@@ -80,13 +83,13 @@ class UserInterface():
             return False
 
     def display_help(self, flag:bool):
-        '''Print help instructions based on user request.'''
+        '''logger.info help instructions based on user request.'''
         user_text=input('You opened instructions/help menu. Choose options and press enter to see intructions. \nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
         while flag==True:
             
             if user_text in 'delimiter':
-                print(f'''\033cA delimiter is your splitting method for multiple filtering in one input. The default is assigned to '|'\n' \
+                logger.info(f'''\033cA delimiter is your splitting method for multiple filtering in one input. The default is assigned to '|'\n' \
                 'A delimiter allows program to recognize seperate filters in one line such as:\n' \
                 '"Average Rating, >, 5 | Number of Votes, >, 10000" If you do set delimiter a special case, it needs to be valid. (Any in: {string.punctuation.replace(',','')})\n
                 There is no logical reason more than self preference to changing the delimiter.
@@ -95,11 +98,11 @@ class UserInterface():
                 user_text=input('\nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
             elif user_text in 'search':
-                print(f'''\033cTo search for a movie, enter values such as: Average Rating, >, 5 or if looking for titles or genres, try typing and entering: Shawshank Redemption or Horror\n''')
+                logger.info(f'''\033cTo search for a movie, enter values such as: Average Rating, >, 5 or if looking for titles or genres, try typing and entering: Shawshank Redemption or Horror\n''')
                 user_text=input('\nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
             elif user_text in 'filter':
-                print(f'''\033cTo apply more than one filter, seperate the filters by {self.delimiter}''')
+                logger.info(f'''\033cTo apply more than one filter, seperate the filters by {self.delimiter}''')
                 user_text=input('\nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
             elif self._is_exit(user_text):
