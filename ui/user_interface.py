@@ -5,18 +5,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 class UserInterface():
-    '''Asks user input for filteration such as: Average Rating, >, 5'''
+    """Class that provides interface for user-based actions."""
 
     def __init__(self): #type: ignore
         self.delimiter="|"
         self.all_filter_tools:list[list[str]]=self.start()
 
     def start(self):
-        '''Initialize the program'''
+        """Initialize the program"""
         flag=True
+        filter_tools=None
         while flag:
-            user_input=self._get_input()
-            if self._is_exit(user_input)==True: break
+            user_input=self._return_input()
+            if self._is_exit(user_input): break
             elif self._is_input_help(user_input): self.display_help(True)
             else:
                 flag=False
@@ -24,11 +25,14 @@ class UserInterface():
                 filter_tools=self._parse_all_filters(user_input)
         return filter_tools
 
-    def _get_input(self):
+    @staticmethod
+    def _return_input():
+        """Print user for valid options and return input"""
         return input('\033cWelcome to movie agent!\n\nYour options: \n\t-search movie\n\t-press enter to skip this step \n\t-type -help to open instructions menu.\n')
         
-    def _is_exit(self, user_input:str):
-        '''Check if user is given exit command to interface, if so return true.'''
+    @staticmethod
+    def _is_exit(user_input:str):
+        """Check if user is given exit command to interface, if so return true."""
         exit_list=['quit', 'exit', 'leave']
         if user_input.strip().lower() in exit_list:
             flag=True
@@ -37,21 +41,20 @@ class UserInterface():
         return flag
 
     def _parse_all_filters(self, user_input:str):
-        '''If there is more than one filter is given, 
-        divide filters by the delimiter and parse each filter on its own.'''
+        """Filter parsing for more than one filters with given delimiter."""
         user_input=self._split_by_delimiter(user_input)
         parsed_filters=[]
-        for filter in user_input:
-            parsed_filters.append(self._parse_filter(filter))
+        for filters in user_input:
+            parsed_filters.append(self._parse_filter(filters))
         return parsed_filters
 
     def _split_by_delimiter(self, user_input:str):
-        '''Attempt to parse user text by delimiter.'''
+        """Attempt to parse user text by delimiter."""
         self.delimiter=self._get_delimiter()
         return self._parse_delimiter(self.delimiter, user_input)
 
     def _get_delimiter(self):
-        '''Ask user for delimiter argument'''
+        """Ask user for delimiter argument"""
         user_delimiter=input(f'''\033cOptional: input your one char delimiter or press enter to keep it as: {self.delimiter}, type /help to get more information\n''')
         if user_delimiter in [""," "]:
             pass
@@ -60,33 +63,36 @@ class UserInterface():
             logger.info('Delimiter configuration failed. Set up as default. ("|")')
         return self.delimiter
 
-    def _parse_delimiter(self, delimiter:str, user_input:str):
-        '''Apply delimiter to multiple filters, if there is only one filter ignore.'''
+    @staticmethod
+    def _parse_delimiter(delimiter:str, user_input:str):
+        """Apply delimiter to multiple filters, if there is only one filter ignore."""
         filtered_input=user_input.strip().lower().split(delimiter)
         filtered_input=[value.strip() for value in filtered_input]
         return filtered_input
 
-    def _parse_filter(self, user_input:str):
-        '''Parse user given text by commas without validation.'''
+    @staticmethod
+    def _parse_filter(user_input:str):
+        """Parse user raw text by commas without validation."""
         filtered_input=user_input.strip().lower().split(',')
         filtered_input=[value.strip() for value in filtered_input]
-        if len(filtered_input)<4 and len(filtered_input)>0:
+        if 4 > len(filtered_input) > 0:
             return filtered_input
         else:
             raise ValueError
         
-    def _is_input_help(self, user_input:str):
-        '''Check for is user asking for help.'''
+    @staticmethod
+    def _is_input_help(user_input:str):
+        """Return boolean based on user input."""
         if user_input in ['delimiter', 'search', 'filter', 'help', '-help']:
             return True
         else:
             return False
 
     def display_help(self, flag:bool):
-        '''Print help instructions based on user request.'''
+        """Print help instructions based on user request."""
         user_text=input('You opened instructions/help menu. Choose options and press enter to see intructions. \nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
-        while flag==True:
+        while flag:
             
             if user_text in 'delimiter':
                 logger.info(f'''\033cA delimiter is your splitting method for multiple filtering in one input. The default is assigned to '|'\n' \
