@@ -1,9 +1,12 @@
 from test_data import data as data
 import pandas as pd
 import datetime
+import logging
 import pathlib as pl
 from pandas import Series
 import json
+
+logger=logging.getLogger(__name__)
 
 class MoviePicker():
     """Algorithmic class that takes constrained data, outputs the best suitable movie."""
@@ -96,7 +99,7 @@ class MoviePicker():
 class MovieFileOperator():
     """Class that handles file operations for orchestrator class for caching."""
     def __init__(self, json_cfg:str="file_operations.json"):
-        """"""
+        """Store properties and set configuration parsing."""
         self.concat=None
         self.data_store={}
         self.json_cfg=json_cfg

@@ -83,7 +83,7 @@ class UserInterface():
             return False
 
     def display_help(self, flag:bool):
-        '''logger.info help instructions based on user request.'''
+        '''Print help instructions based on user request.'''
         user_text=input('You opened instructions/help menu. Choose options and press enter to see intructions. \nOptions:\n\tsearch\n\tdelimiter\n\tfilter\n\tquit\n')
 
         while flag==True:

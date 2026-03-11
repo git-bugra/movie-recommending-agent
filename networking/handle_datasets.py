@@ -3,9 +3,12 @@ import requests
 import pathlib as pl
 import gzip
 from tqdm import tqdm
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DatasetDownloader():
-
+    """Class for HTTP requests"""
     def __init__(self, json_cfg:str="dataset.json"):
         self.json_cfg=json_cfg
         self.config_dir='config'
@@ -13,22 +16,16 @@ class DatasetDownloader():
         self.file= ""
 
     def _load_config(self):
-        """
-        Load configuration file for file operations.
-        """
+        """Load configuration file for file operations."""
         pl.Path.mkdir(pl.Path(__file__).parent.parent/self.config_dir, parents=True, exist_ok=True)
         try:
             with open(pl.Path(__file__).parent.parent/self.config_dir/self.json_cfg, "r") as f:
                 return json.load(f)
-        except ValueError:
-            raise Exception('Failed to open .json config.')
-        except FileNotFoundError:
-            raise Exception('Failed to find .json config.')
+        except ValueError:raise Exception('Failed to open .json config.')
+        except FileNotFoundError:raise Exception('Failed to find .json config.')
 
     def _download_file(self, url, destination, stream=True):
-        """
-        Open and write dataset.
-        """
+        """Make http request and write to destination."""
         self.response=requests.get(url, stream=stream)
         total_chunks=(float(self.response.headers.get('Content-Length'))+8191)//8192
         if self.response.status_code == 200:
@@ -36,27 +33,27 @@ class DatasetDownloader():
                 for chunk in tqdm(self.response.iter_content(chunk_size=8192), total=total_chunks, unit='B', unit_scale=True, bar_format='\033[37m{l_bar}\033[32m{bar}\033[37m{r_bar}', ncols=120, desc=f'downloading dataset as {self.file}'):
                     f.write(chunk)
                 return True
-        else:
-            raise Exception(f'Download failed. Server threw status code: {self.response.status_code}.')
+        else:raise Exception(f'Download failed. Server threw status code: {self.response.status_code}.')
 
     def _decompress_file(self, source, destination):
+        """Decompress .gz dataset, clean up and save to destination."""
         if source.exists():
             with gzip.open(source, "rb") as f_in, open(destination, "wb") as f_out:
                 for chunk in tqdm(iter(lambda: f_in.read(1000000), b""), unit='B', unit_scale=True, bar_format='\033[37m{l_bar}\033[32m{bar}\033[37m{r_bar}', ncols=120, desc=f'decompressing dataset {self.file}'): #1 MB packets
                     f_out.write(chunk)
-            self._delete_compressed_file(source)
+            self._delete_file(source) #delete compressed file (.tsv.gz)
         else:
+
             raise Exception(f'Decompression failed. {source} not found.')
 
-    def _delete_compressed_file(self, source):
+    def _delete_file(self, source):
+        """Delete file"""
         if source.exists():
             pl.Path(source).unlink()
         return self
 
     def fetch_imdb_dataset(self, requests_config: dict):
-        """
-        Orchestrate full dataset download.
-        """
+        """Read from config, download via HTTP, decompress and clean up."""
         for key, value in requests_config.items():
             url=value['url']
             folder=value['folder']
@@ -67,6 +64,7 @@ class DatasetDownloader():
             self._decompress_file(tsv_gz_dataset, dec_file) #decompress and delete old
 
     def main(self):
+        """Set up orchestration for main function."""
         requests_config=self._load_config()
         self.fetch_imdb_dataset(requests_config)
 

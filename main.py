@@ -2,8 +2,9 @@ import pandas as pd
 import pathlib as pl
 import json
 import logging
-from ui.user_interface import UserInterface
+from ui import user_interface as ui
 from networking import handle_datasets as nw
+from scorer import bayesian_algorithm as bayes
 from logs import log_handler
 
 log_handler.LogHandler()
@@ -328,9 +329,12 @@ class AppManager():
     """Main orchestrator that assembles necessary classes and communication."""
     
     def __init__(self):
-        self.agent=MovieAgent()
-        #self.CLI=UserInterface() #Expects prompts like Average Rating>5 or Shawshank Redemption
-        self._main()
+        try:
+            self.agent = MovieAgent()
+            #self.CLI=ui.UserInterface() #Expects prompts like Average Rating>5 or Shawshank Redemption
+            self._main()
+        except Exception as e: # noqa
+            logger.exception(f'Unhandled exception.')
         
     def _main(self):
         """"""
